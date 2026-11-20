@@ -1,0 +1,392 @@
+package ar.edu.utn.frc.dsi.bolsines.gestores;
+
+import ar.edu.utn.frc.dsi.bolsines.dto.DatosSeguimientoBolsin;
+import ar.edu.utn.frc.dsi.bolsines.entidades.Bolsin;
+import ar.edu.utn.frc.dsi.bolsines.entidades.ComisionMedica;
+import ar.edu.utn.frc.dsi.bolsines.entidades.Empleado;
+import ar.edu.utn.frc.dsi.bolsines.entidades.Sesion;
+import ar.edu.utn.frc.dsi.bolsines.entidades.Usuario;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.IAdaptadorGPSTracker;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.UbicacionBolsin;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.UbicacionNoDisponibleException;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.mail.InterfazNotificacionMail;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.IObservadorSeguimiento;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.ISujetoSeguimiento;
+import ar.edu.utn.frc.dsi.bolsines.pantallas.PantallaSeguimientoBolsines;
+import ar.edu.utn.frc.dsi.bolsines.repositorios.BolsinRepository;
+import ar.edu.utn.frc.dsi.bolsines.repositorios.EmpleadoRepository;
+import ar.edu.utn.frc.dsi.bolsines.repositorios.SesionRepository;
+import ar.edu.utn.frc.dsi.bolsines.sesion.ContextoSesion;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.annotation.SessionScope;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * «control» del CU 36 Consultar seguimiento de bolsines.
+ * - PATRÓN ADAPTER: es el Cliente. Sólo conoce IAdaptadorGPSTracker, nunca a los GPS Trackers concretos.
+ * - PATRÓN OBSERVER: es el Sujeto concreto. Notifica a PantallaSeguimientoBolsines e InterfazGoogleMaps
+ *   cada vez que obtiene, actualiza o filtra las ubicaciones de los bolsines.
+ */
+@Component
+@SessionScope
+public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
+
+    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    // --- Dependencias (persistencia e interfaces externas) ---
+    private final ContextoSesion contextoSesion;
+    private final SesionRepository sesionRepository;
+    private final EmpleadoRepository empleadoRepository;
+    private final BolsinRepository bolsinRepository;
+    private final List<IAdaptadorGPSTracker> adaptadoresGPS;
+    private final InterfazNotificacionMail interfazNotificacionMail;
+
+    // --- Observer ---
+    private final List<IObservadorSeguimiento> observadores = new ArrayList<>();
+
+    // --- Estado del caso de uso ---
+    private PantallaSeguimientoBolsines pantalla;
+    private Empleado empleadoLogueado;
+    private ComisionMedica cmEmpleadoLogueado;
+    private List<Bolsin> bolsinesEnviados = new ArrayList<>();
+    private List<DatosSeguimientoBolsin> datosSeguimiento = new ArrayList<>();
+    private List<DatosSeguimientoBolsin> datosVisibles = new ArrayList<>();
+    private Bolsin bolsinSeleccionado;
+    private DatosSeguimientoBolsin datosBolsinSeleccionado;
+
+    public GestorSeguimientoBolsines(ContextoSesion contextoSesion,
+                                     SesionRepository sesionRepository,
+                                     EmpleadoRepository empleadoRepository,
+                                     BolsinRepository bolsinRepository,
+                                     List<IAdaptadorGPSTracker> adaptadoresGPS,
+                                     InterfazNotificacionMail interfazNotificacionMail) {
+        this.contextoSesion = contextoSesion;
+        this.sesionRepository = sesionRepository;
+        this.empleadoRepository = empleadoRepository;
+        this.bolsinRepository = bolsinRepository;
+        this.adaptadoresGPS = adaptadoresGPS;
+        this.interfazNotificacionMail = interfazNotificacionMail;
+    }
+
+    // =====================================================================================
+    // Flujo principal
+    // =====================================================================================
+
+    /** Pasos 2 a 6 del CU 36. */
+    public void consultarSeguimientoBolsines(PantallaSeguimientoBolsines pantalla) {
+        this.pantalla = pantalla;
+        limpiarEstado();
+
+        // Paso 2: busca y muestra la CM del usuario logueado
+        empleadoLogueado = buscarEmpleadoLogueado();
+        if (empleadoLogueado == null) {
+            pantalla.mostrarMensaje("error", "No se encontró el empleado del usuario logueado.");
+            finCU();
+            return;
+        }
+        cmEmpleadoLogueado = buscarCMEmpleadoLogueado();
+        pantalla.mostrarCM(cmEmpleadoLogueado.getNombre());
+
+        // Paso 3: busca los bolsines en estado Enviado cuya CM origen es la del usuario logueado
+        bolsinesEnviados = buscarBolsinesEnviados();
+        if (bolsinesEnviados.isEmpty()) {
+            // A1: No se encuentran bolsines en estado enviado
+            pantalla.mostrarMensaje("advertencia",
+                    "No se encontraron bolsines en estado Enviado para " + cmEmpleadoLogueado.getNombre() + ".");
+            pantalla.informarSinBolsines();
+            finCU();
+            return;
+        }
+
+        // Pasos 4 y 5: solicita y recibe la ubicación de cada bolsín (Adapter)
+        datosSeguimiento = obtenerUbicacionBolsines();
+        datosVisibles = new ArrayList<>(datosSeguimiento);
+
+        // Paso 6: muestra en el mapa la posición de los bolsines (Observer)
+        notificar();
+        pantalla.solicitarSeleccionBolsin();
+    }
+
+    /** Paso 2: el gestor busca la sesión actual y le pide el usuario; luego busca el empleado de ese usuario. */
+    private Empleado buscarEmpleadoLogueado() {
+        if (!contextoSesion.hayUsuarioLogueado()) {
+            return null;
+        }
+        Sesion sesionActual = sesionRepository.findById(contextoSesion.getIdSesion()).orElse(null);
+        if (sesionActual == null) {
+            return null;
+        }
+        Usuario usuarioLogueado = sesionActual.getUsuario();
+        for (Empleado empleado : empleadoRepository.findAll()) {
+            if (empleado.esTuUsuario(usuarioLogueado)) {
+                return empleado;
+            }
+        }
+        return null;
+    }
+
+    private ComisionMedica buscarCMEmpleadoLogueado() {
+        return empleadoLogueado.getCM();
+    }
+
+    /** Paso 3. */
+    private List<Bolsin> buscarBolsinesEnviados() {
+        List<Bolsin> encontrados = new ArrayList<>();
+        for (Bolsin bolsin : bolsinRepository.findAll()) {
+            if (bolsin.esTuCMOrigen(cmEmpleadoLogueado) && bolsin.sosEnviado()) {
+                encontrados.add(bolsin);
+            }
+        }
+        return encontrados;
+    }
+
+    /** Pasos 4 y 5: PATRÓN ADAPTER. El gestor le habla a todos los modelos de GPS de la misma forma. */
+    private List<DatosSeguimientoBolsin> obtenerUbicacionBolsines() {
+        List<DatosSeguimientoBolsin> resultado = new ArrayList<>();
+        for (Bolsin bolsin : bolsinesEnviados) {
+            IAdaptadorGPSTracker adaptador = buscarAdaptadorGPS(bolsin.getModeloGPSTracker());
+            if (adaptador == null) {
+                resultado.add(crearDatosSinUbicacion(bolsin,
+                        "No hay adaptador para el modelo de GPS Tracker " + bolsin.getModeloGPSTracker()));
+                continue;
+            }
+            try {
+                UbicacionBolsin ubicacion = adaptador.obtenerUbicacionBolsin(
+                        bolsin.getNumeroBolsin(),
+                        bolsin.getCMOrigen().getCodigo(),
+                        bolsin.getCMDestino().getCodigo());
+                resultado.add(crearDatosConUbicacion(bolsin, ubicacion));
+            } catch (UbicacionNoDisponibleException e) {
+                // A3: El GPS Tracker no pudo informar ubicación del bolsín
+                resultado.add(crearDatosSinUbicacion(bolsin, e.getMessage()));
+            }
+        }
+        return resultado;
+    }
+
+    private IAdaptadorGPSTracker buscarAdaptadorGPS(String modeloGPSTracker) {
+        for (IAdaptadorGPSTracker adaptador : adaptadoresGPS) {
+            if (adaptador.esDeModelo(modeloGPSTracker)) {
+                return adaptador;
+            }
+        }
+        return null;
+    }
+
+    /** El EB pide refrescar las posiciones (botón "Actualizar" o refresco automático). */
+    public void actualizarUbicaciones() {
+        if (bolsinesEnviados.isEmpty()) {
+            return;
+        }
+        datosSeguimiento = obtenerUbicacionBolsines();
+        datosVisibles = new ArrayList<>(datosSeguimiento);
+        notificar();
+        pantalla.mostrarMensaje("info", "Ubicaciones actualizadas a las " + LocalDateTime.now().format(FORMATO_FECHA_HORA) + ".");
+    }
+
+    /** Paso 6: filtro por número de precinto. A2 si no se encuentra. */
+    public void tomarFiltroPrecinto(Integer numeroPrecinto) {
+        if (numeroPrecinto == null) {
+            datosVisibles = new ArrayList<>(datosSeguimiento);
+            notificar();
+            return;
+        }
+        List<DatosSeguimientoBolsin> filtrados = new ArrayList<>();
+        for (Bolsin bolsin : bolsinesEnviados) {
+            if (bolsin.tenesPrecinto(numeroPrecinto)) {
+                filtrados.add(buscarDatosSeguimiento(bolsin.getNumeroBolsin()));
+            }
+        }
+        if (filtrados.isEmpty()) {
+            // A2: No se encuentra bolsín con el número de precinto ingresado
+            pantalla.mostrarMensaje("advertencia",
+                    "No se encontró un bolsín enviado con el número de precinto " + numeroPrecinto + ".");
+            return;
+        }
+        datosVisibles = filtrados;
+        notificar();
+    }
+
+    /** Paso 6: filtro por CM destino (código vacío = todas). */
+    public void tomarFiltroCMDestino(String codigoCMDestino) {
+        if (codigoCMDestino == null || codigoCMDestino.isBlank()) {
+            datosVisibles = new ArrayList<>(datosSeguimiento);
+            notificar();
+            return;
+        }
+        List<DatosSeguimientoBolsin> filtrados = new ArrayList<>();
+        for (Bolsin bolsin : bolsinesEnviados) {
+            if (bolsin.tenesCMDestino(codigoCMDestino)) {
+                filtrados.add(buscarDatosSeguimiento(bolsin.getNumeroBolsin()));
+            }
+        }
+        datosVisibles = filtrados;
+        notificar();
+    }
+
+    /** Pasos 7 y 8: el EB selecciona un bolsín del mapa. */
+    public void tomarSeleccionBolsin(Integer numeroBolsin) {
+        bolsinSeleccionado = null;
+        for (Bolsin bolsin : bolsinesEnviados) {
+            if (bolsin.getNumeroBolsin().equals(numeroBolsin)) {
+                bolsinSeleccionado = bolsin;
+            }
+        }
+        if (bolsinSeleccionado == null) {
+            pantalla.mostrarMensaje("error", "El bolsín " + numeroBolsin + " no está entre los bolsines en seguimiento.");
+            return;
+        }
+        datosBolsinSeleccionado = buscarDatosSeguimiento(numeroBolsin);
+        if (!datosBolsinSeleccionado.ubicado()) {
+            pantalla.mostrarMensaje("advertencia",
+                    "No se puede informar la ubicación del bolsín " + numeroBolsin + ": el GPS Tracker no la reportó.");
+            return;
+        }
+        // Paso 8: consulta si se desea enviar el correo al GCM destino
+        pantalla.solicitarConfirmacionEnvioCorreo(datosBolsinSeleccionado);
+    }
+
+    /** Pasos 9 a 11 (o A5 si no confirma). */
+    public void tomarConfirmacionEnvioCorreo(boolean confirma) {
+        if (bolsinSeleccionado == null) {
+            pantalla.mostrarMensaje("error", "Primero seleccione un bolsín del mapa.");
+            return;
+        }
+        if (!confirma) {
+            // A5: El EB no selecciona la opción para enviar un correo electrónico
+            pantalla.mostrarMensaje("info", "No se envió el correo. Fin de la consulta.");
+            finCU();
+            return;
+        }
+        // Paso 10: busca la dirección de correo del GCM de la CM destino del bolsín
+        String emailGCM = buscarEmailGCMDestino();
+        if (emailGCM == null) {
+            pantalla.mostrarMensaje("error",
+                    "No hay un Gerente de Comisión Médica registrado para " + bolsinSeleccionado.getCMDestino().getNombre() + ".");
+            return;
+        }
+        // Paso 11: <<include>> CU 31 Notificar ubicación de bolsín
+        boolean enviado = llamarCUNotificarUbicacionBolsin(emailGCM);
+        if (enviado) {
+            pantalla.informarNotificacionExitosa(bolsinSeleccionado.getNumeroBolsin(), emailGCM);
+        } else {
+            pantalla.mostrarMensaje("error", "No se pudo enviar la notificación.");
+        }
+        finCU();
+    }
+
+    /** Paso 10: navega Bolsín -> CM destino y busca entre los empleados el GCM de esa CM. */
+    private String buscarEmailGCMDestino() {
+        ComisionMedica cmDestino = bolsinSeleccionado.getCMDestino();
+        for (Empleado empleado : empleadoRepository.findAll()) {
+            if (empleado.esTuCM(cmDestino) && empleado.sosGCM()) {
+                return empleado.getEmail();
+            }
+        }
+        return null;
+    }
+
+    private boolean llamarCUNotificarUbicacionBolsin(String emailGCM) {
+        return interfazNotificacionMail.notificarUbicacionBolsin(
+                emailGCM,
+                bolsinSeleccionado.getNumeroBolsin(),
+                LocalDateTime.parse(datosBolsinSeleccionado.fechaHoraUltimaActualizacion(), FORMATO_FECHA_HORA),
+                datosBolsinSeleccionado.latitud(),
+                datosBolsinSeleccionado.longitud());
+    }
+
+    /** A4: el EB cancela la ejecución del caso de uso. */
+    public void cancelarCU() {
+        if (pantalla != null) {
+            pantalla.mostrarMensaje("info", "Consulta cancelada.");
+        }
+        finCU();
+    }
+
+    private void finCU() {
+        new ArrayList<>(observadores).forEach(this::quitar);
+        if (pantalla != null) {
+            pantalla.cerrarConsulta();
+        }
+        limpiarEstado();
+    }
+
+    // =====================================================================================
+    // PATRÓN OBSERVER - Sujeto
+    // =====================================================================================
+
+    @Override
+    public void suscribir(IObservadorSeguimiento observador) {
+        if (!observadores.contains(observador)) {
+            observadores.add(observador);
+        }
+    }
+
+    @Override
+    public void quitar(IObservadorSeguimiento observador) {
+        observadores.remove(observador);
+    }
+
+    @Override
+    public void notificar() {
+        List<DatosSeguimientoBolsin> copia = List.copyOf(datosVisibles);
+        for (IObservadorSeguimiento observador : observadores) {
+            observador.actualizar(copia);
+        }
+    }
+
+    // =====================================================================================
+    // Auxiliares
+    // =====================================================================================
+
+    private DatosSeguimientoBolsin buscarDatosSeguimiento(Integer numeroBolsin) {
+        for (DatosSeguimientoBolsin datos : datosSeguimiento) {
+            if (datos.numeroBolsin().equals(numeroBolsin)) {
+                return datos;
+            }
+        }
+        return null;
+    }
+
+    private DatosSeguimientoBolsin crearDatosConUbicacion(Bolsin bolsin, UbicacionBolsin ubicacion) {
+        return new DatosSeguimientoBolsin(
+                bolsin.getNumeroBolsin(),
+                bolsin.getNumeroPrecinto(),
+                bolsin.getCMDestino().getCodigo(),
+                bolsin.getCMDestino().getNombre(),
+                bolsin.getModeloGPSTracker(),
+                true,
+                ubicacion.latitud(),
+                ubicacion.longitud(),
+                ubicacion.fechaHoraUltimaActualizacion().format(FORMATO_FECHA_HORA),
+                null);
+    }
+
+    private DatosSeguimientoBolsin crearDatosSinUbicacion(Bolsin bolsin, String motivo) {
+        return new DatosSeguimientoBolsin(
+                bolsin.getNumeroBolsin(),
+                bolsin.getNumeroPrecinto(),
+                bolsin.getCMDestino().getCodigo(),
+                bolsin.getCMDestino().getNombre(),
+                bolsin.getModeloGPSTracker(),
+                false,
+                null,
+                null,
+                null,
+                motivo);
+    }
+
+    private void limpiarEstado() {
+        empleadoLogueado = null;
+        cmEmpleadoLogueado = null;
+        bolsinesEnviados = new ArrayList<>();
+        datosSeguimiento = new ArrayList<>();
+        datosVisibles = new ArrayList<>();
+        bolsinSeleccionado = null;
+        datosBolsinSeleccionado = null;
+    }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema Bolsines · Consultar seguimiento de bolsines</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="marca">
+    <span class="marca-logo">✉</span>
+    <span>Sistema Bolsines<small>Organismo Controlador</small></span>
+  </div>
+  <div class="espacio"></div>
+  <div class="chip-usuario">
+    <span class="avatar" id="avatar">EB</span>
+    <span><span id="nombre-usuario">—</span><span class="rol" id="cm-usuario">Encargado de Bolsines</span></span>
+  </div>
+  <button class="boton boton-claro" id="btn-salir" type="button">Salir</button>
+</header>
+
+<nav class="migas" aria-label="Ubicación">Inicio › Bolsines › <b>Consultar seguimiento de bolsines</b></nav>
+
+<main class="contenido">
+
+  <!-- Paso 1: opción para consultar -->
+  <section class="tarjeta tarjeta-inicio" id="vista-inicio">
+    <div class="icono-grande">📍</div>
+    <h2>Consultar seguimiento de bolsines</h2>
+    <p>Mirá en el mapa dónde están los bolsines enviados por tu comisión médica que todavía están en viaje.
+      Podés filtrar por número de precinto o por CM destino y avisarle por correo al Gerente de la CM destino.</p>
+    <button class="boton boton-primario boton-grande" id="btn-consultar" type="button">Consultar ubicación de bolsines</button>
+  </section>
+
+  <!-- Pasos 2 a 7 -->
+  <section class="oculto" id="vista-seguimiento">
+    <div class="titulo-pagina">
+      <h1>Bolsines en viaje</h1>
+      <span class="cm-origen" id="cm-origen" title="Comisión médica del usuario logueado">CM origen: —</span>
+    </div>
+
+    <div class="tarjeta herramientas" role="search">
+      <div class="campo">
+        <label for="filtro-precinto">N° de precinto</label>
+        <div class="grupo-busqueda">
+          <input id="filtro-precinto" type="number" min="1" placeholder="Ej. 50101">
+          <button class="boton boton-secundario" id="btn-buscar-precinto" type="button">Buscar</button>
+        </div>
+      </div>
+      <div class="campo">
+        <label for="filtro-cm">CM destino</label>
+        <select id="filtro-cm"><option value="">Todas</option></select>
+      </div>
+      <button class="boton boton-texto" id="btn-limpiar" type="button">Limpiar filtros</button>
+      <div class="espacio"></div>
+      <div class="bloque-actualizar">
+        <span class="ultima-act" id="ultima-act">&nbsp;</span>
+        <div class="grupo-busqueda">
+          <label class="auto"><input type="checkbox" id="auto-actualizar"> Cada 30 s</label>
+          <button class="boton boton-secundario" id="btn-actualizar" type="button">⟳ Actualizar ubicaciones</button>
+        </div>
+      </div>
+      <button class="boton boton-texto" id="btn-cancelar" type="button">Cancelar</button>
+    </div>
+
+    <div class="vista">
+      <section class="tarjeta panel-lista" aria-label="Listado de bolsines">
+        <header>
+          <h3>Bolsines enviados</h3>
+          <span class="contador" id="contador">0 bolsines</span>
+        </header>
+        <div class="lista" id="lista"></div>
+      </section>
+      <section class="tarjeta panel-mapa" aria-label="Mapa">
+        <div id="mapa"></div>
+        <div class="leyenda" id="leyenda">Hacé clic en un bolsín del mapa o del listado para informar su ubicación.</div>
+      </section>
+    </div>
+  </section>
+
+  <!-- A1: sin bolsines enviados -->
+  <section class="tarjeta estado-vacio oculto" id="vista-vacia">
+    <div class="icono-grande">📭</div>
+    <h2>No hay bolsines en viaje</h2>
+    <p id="texto-vacio">Tu comisión médica no tiene bolsines en estado Enviado en este momento.</p>
+    <button class="boton boton-secundario" type="button" data-accion="volver">Volver</button>
+  </section>
+
+  <!-- Fin del CU -->
+  <section class="tarjeta estado-vacio oculto" id="vista-fin">
+    <div class="icono-grande" id="icono-fin">✅</div>
+    <h2 id="titulo-fin">Notificación enviada</h2>
+    <p id="texto-fin"></p>
+    <button class="boton boton-primario" type="button" data-accion="volver">Nueva consulta</button>
+  </section>
+</main>
+
+<!-- Pasos 8 y 9: confirmación de envío de correo -->
+<div class="fondo-modal" id="modal-confirmacion" role="dialog" aria-modal="true" aria-labelledby="titulo-modal">
+  <div class="tarjeta modal">
+    <h3 id="titulo-modal">¿Enviar la ubicación por correo?</h3>
+    <p>Se le enviará un correo al <b>Gerente de la Comisión Médica destino</b> con el número de bolsín,
+      la fecha y hora de la última actualización y sus coordenadas.</p>
+    <dl class="resumen" id="resumen-bolsin"></dl>
+    <div class="acciones">
+      <button class="boton boton-secundario" id="btn-no-enviar" type="button">No enviar</button>
+      <button class="boton boton-primario" id="btn-enviar" type="button">Enviar correo</button>
+    </div>
+  </div>
+</div>
+
+<div class="avisos" id="avisos" aria-live="polite"></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/sudamerica.js"></script>
+<script src="js/seguimiento.js"></script>
+</body>
+</html>

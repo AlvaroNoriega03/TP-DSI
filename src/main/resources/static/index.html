@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema Bolsines · Ingreso</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<main class="pagina-login">
+  <form class="tarjeta tarjeta-login" id="form-login" autocomplete="on">
+    <div class="marca" style="color: var(--azul-900)">
+      <span class="marca-logo" style="color:#fff">✉</span>
+      <span>Sistema Bolsines<small style="color: var(--gris-600)">Organismo Controlador</small></span>
+    </div>
+    <h1>Ingresar</h1>
+    <p>Usá tu usuario de la comisión médica.</p>
+    <div class="campo">
+      <label for="usuario">Usuario</label>
+      <input id="usuario" name="usuario" required autofocus value="eb.cordoba">
+    </div>
+    <div class="campo">
+      <label for="clave">Contraseña</label>
+      <input id="clave" name="clave" type="password" required value="1234">
+    </div>
+    <div class="error-login" id="error-login" role="alert"></div>
+    <button class="boton boton-primario" type="submit">Ingresar</button>
+    <div class="ayuda">
+      Usuarios de prueba (clave <b>1234</b>):<br>
+      <b>eb.cordoba</b> — EB de CM Córdoba (tiene bolsines enviados)<br>
+      <b>eb.jujuy</b> — EB de CM Jujuy (sin bolsines enviados → A1)
+    </div>
+  </form>
+</main>
+<script src="js/login.js"></script>
+</body>
+</html>
