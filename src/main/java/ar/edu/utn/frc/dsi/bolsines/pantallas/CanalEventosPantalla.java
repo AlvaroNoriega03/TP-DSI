@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * Infraestructura web (no es parte del dominio): canal Server-Sent Events entre las boundaries que corren en el
- * servidor (PantallaSeguimientoBolsines, InterfazGoogleMaps) y el navegador del EB.
+ * servidor (PantallaUbicacionBolsines, InterfazGoogleMaps) y el navegador del EB.
  * Gracias a este canal, cuando un observador recibe actualizar(...) el navegador se refresca solo.
  * Si el navegador todavía no se conectó, los eventos quedan pendientes y se envían al conectarse.
  */

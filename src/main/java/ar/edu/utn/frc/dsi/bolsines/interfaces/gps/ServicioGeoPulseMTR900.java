@@ -15,11 +15,11 @@ import java.util.List;
 
 /**
  * PATRÓN ADAPTER - Adaptee (Adaptado) del modelo GeoPulse MTR-900.
- * fetchCargoPositions(apiKey, numeroBolsin entero) devuelve una MATRIZ: cada fila es
- * [numeroBolsin, latitud, longitud, fechaHoraUltimaActualizacion].
+ * fetchCargoPositions(claveAPI, bolsinID entero) devuelve una MATRIZ: cada fila es
+ * [bolsinID, latitud, longitud, fechaHoraUltimaActualizacion].
  */
 @Component
-public class GPSTrackerGeoPulseMTR900 {
+public class ServicioGeoPulseMTR900 {
 
     private static final String ENDPOINT = "/api/geopulse-mtr-900/fetchCargoPositions";
 
@@ -27,16 +27,16 @@ public class GPSTrackerGeoPulseMTR900 {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public GPSTrackerGeoPulseMTR900(@Value("${gps.url-base}") String urlBase) {
+    public ServicioGeoPulseMTR900(@Value("${gps.url-base}") String urlBase) {
         this.urlBase = urlBase;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
     }
 
-    public Object[][] fetchCargoPositions(String apiKey, int numeroBolsin) {
-        String url = urlBase + ENDPOINT + "?numeroBolsin=" + numeroBolsin;
+    public Object[][] fetchCargoPositions(String claveAPI, int bolsinID) {
+        String url = urlBase + ENDPOINT + "?numeroBolsin=" + bolsinID;
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(5))
-                .header("X-API-Key", apiKey)
+                .header("X-API-Key", claveAPI)
                 .GET()
                 .build();
         try {

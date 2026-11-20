@@ -10,41 +10,41 @@ import java.time.LocalDateTime;
  * Sólo envía el número de bolsín (no usa códigos de CM) y convierte la matriz recibida.
  */
 @Component
-public class AdaptadorGPSGeoPulseMTR900 implements IAdaptadorGPSTracker {
+public class LocalizadorGeoPulseMTR900 implements ILocalizadorBolsines {
 
     public static final String MODELO = "GeoPulse MTR-900";
 
-    private final GPSTrackerGeoPulseMTR900 gpsTracker;
-    private final String apiKey;
+    private final ServicioGeoPulseMTR900 servicio;
+    private final String claveAPI;
 
-    public AdaptadorGPSGeoPulseMTR900(GPSTrackerGeoPulseMTR900 gpsTracker,
-                                      @Value("${gps.api-key.geopulse-mtr-900}") String apiKey) {
-        this.gpsTracker = gpsTracker;
-        this.apiKey = apiKey;
+    public LocalizadorGeoPulseMTR900(ServicioGeoPulseMTR900 servicio,
+                                      @Value("${gps.api-key.geopulse-mtr-900}") String claveAPI) {
+        this.servicio = servicio;
+        this.claveAPI = claveAPI;
     }
 
     @Override
-    public boolean esDeModelo(String modeloGPSTracker) {
-        return MODELO.equalsIgnoreCase(modeloGPSTracker);
+    public boolean esDeModelo(String modeloGPS) {
+        return MODELO.equalsIgnoreCase(modeloGPS);
     }
 
     @Override
-    public UbicacionBolsin obtenerUbicacionBolsin(Integer numeroBolsin, String codigoCMOrigen, String codigoCMDestino)
+    public UbicacionBolsin localizarBolsin(Integer nroBolsin, String codigoCMOrigen, String codigoCMDestino)
             throws UbicacionNoDisponibleException {
         try {
-            Object[][] matriz = gpsTracker.fetchCargoPositions(apiKey, numeroBolsin);
-            return convertirMatriz(matriz, numeroBolsin);
+            Object[][] matriz = servicio.fetchCargoPositions(claveAPI, nroBolsin);
+            return convertirRespuestaLocalizacion(matriz, nroBolsin);
         } catch (GPSTrackerException e) {
             throw new UbicacionNoDisponibleException(e.getMessage(), e);
         }
     }
 
     /** [[101, -31.4201, -64.1888, "2026-03-07T12:30"]] */
-    private UbicacionBolsin convertirMatriz(Object[][] matriz, Integer numeroBolsin) throws UbicacionNoDisponibleException {
+    private UbicacionBolsin convertirRespuestaLocalizacion(Object[][] matriz, Integer nroBolsin) throws UbicacionNoDisponibleException {
         try {
             for (Object[] fila : matriz) {
                 int nro = ((Number) fila[0]).intValue();
-                if (nro == numeroBolsin) {
+                if (nro == nroBolsin) {
                     return new UbicacionBolsin(
                             nro,
                             ((Number) fila[1]).doubleValue(),
@@ -55,6 +55,6 @@ public class AdaptadorGPSGeoPulseMTR900 implements IAdaptadorGPSTracker {
         } catch (Exception e) {
             throw new UbicacionNoDisponibleException("Respuesta inválida del GeoPulse MTR-900", e);
         }
-        throw new UbicacionNoDisponibleException("GeoPulse MTR-900 no informó la ubicación del bolsín " + numeroBolsin);
+        throw new UbicacionNoDisponibleException("GeoPulse MTR-900 no informó la ubicación del bolsín " + nroBolsin);
     }
 }

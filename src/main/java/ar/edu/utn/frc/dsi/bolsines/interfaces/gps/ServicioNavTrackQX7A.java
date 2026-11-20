@@ -14,29 +14,29 @@ import java.time.Duration;
 
 /**
  * PATRÓN ADAPTER - Adaptee (Adaptado) del modelo NavTrack QX-7A.
- * retrieveTrackingData(apiKey, numeroBolsin entero, código CM destino String) devuelve un único String
+ * retrieveTrackingData(claveAPI, bolsinID entero, código CM destino String) devuelve un único String
  * con los ítems separados por comas: "numeroBolsin,latitud,longitud,fechaHoraUltimoReporte".
  */
 @Component
-public class GPSTrackerNavTrackQX7A {
+public class ServicioNavTrackQX7A {
 
     private static final String ENDPOINT = "/api/navtrack-qx-7a/retrieveTrackingData";
 
     private final String urlBase;
     private final HttpClient httpClient;
 
-    public GPSTrackerNavTrackQX7A(@Value("${gps.url-base}") String urlBase) {
+    public ServicioNavTrackQX7A(@Value("${gps.url-base}") String urlBase) {
         this.urlBase = urlBase;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
     }
 
-    public String retrieveTrackingData(String apiKey, int numeroBolsin, String codigoComisionMedicaDestino) {
+    public String retrieveTrackingData(String claveAPI, int bolsinID, String codCMDestino) {
         String url = urlBase + ENDPOINT
-                + "?numeroBolsin=" + numeroBolsin
-                + "&codigoComisionMedicaDestino=" + URLEncoder.encode(codigoComisionMedicaDestino, StandardCharsets.UTF_8);
+                + "?numeroBolsin=" + bolsinID
+                + "&codigoComisionMedicaDestino=" + URLEncoder.encode(codCMDestino, StandardCharsets.UTF_8);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(5))
-                .header("X-API-Key", apiKey)
+                .header("X-API-Key", claveAPI)
                 .GET()
                 .build();
         try {

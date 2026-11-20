@@ -1,14 +1,14 @@
 package ar.edu.utn.frc.dsi.bolsines.interfaces.gps;
 
 /**
- * PATRÓN ADAPTER - Target (Objetivo).
- * Interfaz única que conoce el GestorSeguimientoBolsines (Cliente) para obtener la ubicación
+ * PATRÓN ADAPTER - Target (Objetivo): ILocalizadorBolsines.
+ * Interfaz única que conoce el GestorUbicacionBolsines (Cliente) para obtener la ubicación
  * de un bolsín, sin importar qué modelo de GPS Tracker tenga colocado.
  */
-public interface IAdaptadorGPSTracker {
+public interface ILocalizadorBolsines {
 
     /** ¿Este adaptador sabe comunicarse con el modelo de GPS Tracker indicado? */
-    boolean esDeModelo(String modeloGPSTracker);
+    boolean esDeModelo(String modeloGPS);
 
     /**
      * Devuelve la ubicación del bolsín en un formato común (número, latitud, longitud y fecha/hora).
@@ -16,6 +16,6 @@ public interface IAdaptadorGPSTracker {
      *
      * @throws UbicacionNoDisponibleException si el GPS Tracker no pudo informar la ubicación (flujo A3).
      */
-    UbicacionBolsin obtenerUbicacionBolsin(Integer numeroBolsin, String codigoCMOrigen, String codigoCMDestino)
+    UbicacionBolsin localizarBolsin(Integer nroBolsin, String codigoCMOrigen, String codigoCMDestino)
             throws UbicacionNoDisponibleException;
 }

@@ -9,46 +9,46 @@ import java.time.LocalDateTime;
 
 /**
  * PATRÓN ADAPTER - Adapter concreto para el modelo XTR-4500L (adaptador de objetos: compone al Adaptee).
- * Traduce obtenerUbicacionBolsin(...) a getBolsinLocation(apiKey, nro, codigoCMOrigen) y convierte el JSON
+ * Traduce localizarBolsin(...) a getBolsinLocation(claveAPI, nro, codigoCMOrigen) y convierte el JSON
  * recibido al formato común UbicacionBolsin.
  */
 @Component
-public class AdaptadorGPSXTR4500L implements IAdaptadorGPSTracker {
+public class LocalizadorXTR4500L implements ILocalizadorBolsines {
 
     public static final String MODELO = "XTR-4500L";
 
-    private final GPSTrackerXTR4500L gpsTracker;
-    private final String apiKey;
+    private final ServicioXTR4500L servicio;
+    private final String claveAPI;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AdaptadorGPSXTR4500L(GPSTrackerXTR4500L gpsTracker,
-                                @Value("${gps.api-key.xtr-4500l}") String apiKey) {
-        this.gpsTracker = gpsTracker;
-        this.apiKey = apiKey;
+    public LocalizadorXTR4500L(ServicioXTR4500L servicio,
+                                @Value("${gps.api-key.xtr-4500l}") String claveAPI) {
+        this.servicio = servicio;
+        this.claveAPI = claveAPI;
     }
 
     @Override
-    public boolean esDeModelo(String modeloGPSTracker) {
-        return MODELO.equalsIgnoreCase(modeloGPSTracker);
+    public boolean esDeModelo(String modeloGPS) {
+        return MODELO.equalsIgnoreCase(modeloGPS);
     }
 
     @Override
-    public UbicacionBolsin obtenerUbicacionBolsin(Integer numeroBolsin, String codigoCMOrigen, String codigoCMDestino)
+    public UbicacionBolsin localizarBolsin(Integer nroBolsin, String codigoCMOrigen, String codigoCMDestino)
             throws UbicacionNoDisponibleException {
         try {
-            String json = gpsTracker.getBolsinLocation(apiKey, numeroBolsin, codigoCMOrigen);
-            return convertirJSON(json, numeroBolsin);
+            String json = servicio.getBolsinLocation(claveAPI, nroBolsin, codigoCMOrigen);
+            return convertirRespuestaLocalizacion(json, nroBolsin);
         } catch (GPSTrackerException e) {
             throw new UbicacionNoDisponibleException(e.getMessage(), e);
         }
     }
 
     /** {"items":[{"numeroBolsin":101,"latitud":-31.42,"longitud":-64.18,"fechaHoraUltimaActualizacion":"..."}]} */
-    private UbicacionBolsin convertirJSON(String json, Integer numeroBolsin) throws UbicacionNoDisponibleException {
+    private UbicacionBolsin convertirRespuestaLocalizacion(String json, Integer nroBolsin) throws UbicacionNoDisponibleException {
         try {
             JsonNode items = objectMapper.readTree(json).path("items");
             for (JsonNode item : items) {
-                if (item.path("numeroBolsin").asInt() == numeroBolsin) {
+                if (item.path("numeroBolsin").asInt() == nroBolsin) {
                     return new UbicacionBolsin(
                             item.path("numeroBolsin").asInt(),
                             item.path("latitud").asDouble(),
@@ -56,7 +56,7 @@ public class AdaptadorGPSXTR4500L implements IAdaptadorGPSTracker {
                             LocalDateTime.parse(item.path("fechaHoraUltimaActualizacion").asText()));
                 }
             }
-            throw new UbicacionNoDisponibleException("XTR-4500L no informó la ubicación del bolsín " + numeroBolsin);
+            throw new UbicacionNoDisponibleException("XTR-4500L no informó la ubicación del bolsín " + nroBolsin);
         } catch (UbicacionNoDisponibleException e) {
             throw e;
         } catch (Exception e) {

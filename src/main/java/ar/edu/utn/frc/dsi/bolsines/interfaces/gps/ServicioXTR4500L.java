@@ -15,30 +15,30 @@ import java.time.Duration;
 /**
  * PATRÓN ADAPTER - Adaptee (Adaptado) del modelo XTR-4500L.
  * Representa al dispositivo/servicio externo tal como lo describe la Observación 1 del CU 36:
- * getBolsinLocation(apiKey, numeroBolsin entero, código CM origen String) devuelve un JSON como String.
- * Su interfaz NO es compatible con la que espera el gestor: por eso existe AdaptadorGPSXTR4500L.
+ * getBolsinLocation(claveAPI, bolsinID entero, código CM origen String) devuelve un JSON como String.
+ * Su interfaz NO es compatible con la que espera el gestor: por eso existe LocalizadorXTR4500L.
  */
 @Component
-public class GPSTrackerXTR4500L {
+public class ServicioXTR4500L {
 
     private static final String ENDPOINT = "/api/xtr-4500l/getBolsinLocation";
 
     private final String urlBase;
     private final HttpClient httpClient;
 
-    public GPSTrackerXTR4500L(@Value("${gps.url-base}") String urlBase) {
+    public ServicioXTR4500L(@Value("${gps.url-base}") String urlBase) {
         this.urlBase = urlBase;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
     }
 
     /** Endpoint del fabricante. Devuelve {"items":[{numeroBolsin, latitud, longitud, fechaHoraUltimaActualizacion}]}. */
-    public String getBolsinLocation(String apiKey, int numeroBolsin, String codigoComisionMedicaOrigen) {
+    public String getBolsinLocation(String claveAPI, int bolsinID, String codCMOrigen) {
         String url = urlBase + ENDPOINT
-                + "?numeroBolsin=" + numeroBolsin
-                + "&codigoComisionMedicaOrigen=" + URLEncoder.encode(codigoComisionMedicaOrigen, StandardCharsets.UTF_8);
+                + "?numeroBolsin=" + bolsinID
+                + "&codigoComisionMedicaOrigen=" + URLEncoder.encode(codCMOrigen, StandardCharsets.UTF_8);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(5))
-                .header("X-API-Key", apiKey)
+                .header("X-API-Key", claveAPI)
                 .GET()
                 .build();
         try {

@@ -31,7 +31,7 @@ public class Rol {
     }
 
     /** ¿Este rol es el de Gerente de Comisión Médica (GCM)? */
-    public boolean esGCM() {
+    public boolean esTuGCM() {
         return GERENTE_COMISION_MEDICA.equalsIgnoreCase(nombre);
     }
 

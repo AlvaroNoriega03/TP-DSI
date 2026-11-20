@@ -1,7 +1,8 @@
 # PPAI 2026 · DSI · 3K4 · Grupo 9 — CU 36 Consultar seguimiento de bolsines
 
 Implementación del CU 36 con los patrones **Adapter** (tres modelos de GPS Tracker) y **Observer**
-(la pantalla y el mapa se actualizan cuando el gestor obtiene, refresca o filtra las ubicaciones).
+(al confirmar el envío, el gestor crea y notifica a `InterfazNotificacionEmail`, que envía el correo al GCM;
+además la pantalla y el mapa se actualizan cuando el gestor obtiene, refresca o filtra las ubicaciones).
 
 | | |
 |---|---|
@@ -41,18 +42,6 @@ También se puede abrir la carpeta en IntelliJ y ejecutar `BolsinesApplication`.
 La base se crea y se carga sola la primera vez. Para volver a los datos iniciales, borrar la carpeta `data/`.
 Consola de la base: http://localhost:8081/h2-console (JDBC URL `jdbc:h2:file:./data/bolsines`, usuario `sa`, sin clave).
 
-## Guion para la defensa
-
-| Flujo | Qué hacer | Qué se ve |
-|---|---|---|
-| Principal (XTR-4500L) | Ingresar como `eb.cordoba` → *Consultar ubicación de bolsines* → clic en el bolsín **101** → *Enviar correo* | CM Córdoba, 5 bolsines en la lista, 4 en el mapa; correo al GCM de Rosario (se ve en la consola de la app) |
-| Los tres adaptadores | Mirar la columna *GPS* de la lista | 101 XTR-4500L (JSON), 110 NavTrack QX-7A (texto con comas), 103 y 107 GeoPulse MTR-900 (matriz) |
-| Observer | *Actualizar ubicaciones* o tildar *Actualizar cada 30 s*; usar los filtros | La lista **y** el mapa se redibujan solos con una sola notificación del gestor |
-| A1 | Ingresar como `eb.jujuy` → *Consultar* | "No hay bolsines en viaje" |
-| A2 | Buscar el precinto `99999` | Aviso: no se encontró bolsín con ese precinto. (Con `50110` filtra el bolsín 110) |
-| A3 | Ver el bolsín **111** | "Sin señal GPS": la API respondió 404. Si se apaga la API mock, todos quedan sin señal y el CU sigue funcionando |
-| A4 | *Cancelar* | Vuelve al inicio |
-| A5 | Seleccionar un bolsín → *No enviar* | "Consulta finalizada", no se envía correo |
 
 ## Estructura
 
@@ -60,13 +49,13 @@ Consola de la base: http://localhost:8081/h2-console (JDBC URL `jdbc:h2:file:./d
 src/main/java/ar/edu/utn/frc/dsi/bolsines
 ├── entidades/        Bolsin, CambioEstadoBolsin, Estado, ComisionMedica, Empleado, Rol, Usuario, Sesion
 ├── repositorios/     Spring Data JPA
-├── gestores/         GestorSeguimientoBolsines   («control» · Cliente del Adapter · Sujeto del Observer)
-├── pantallas/        PantallaSeguimientoBolsines («boundary» · Observador) + CanalEventosPantalla (SSE)
+├── gestores/         GestorUbicacionBolsines   («control» · Cliente del Adapter · Sujeto del Observer)
+├── pantallas/        PantallaUbicacionBolsines («boundary» · Observador) + CanalEventosPantalla (SSE)
 ├── interfaces/
-│   ├── gps/          IAdaptadorGPSTracker (Target), Adaptador* (Adapters), GPSTracker* (Adaptees), UbicacionBolsin
-│   ├── observer/     ISujetoSeguimiento, IObservadorSeguimiento
+│   ├── gps/          ILocalizadorBolsines (Target), Adaptador* (Adapters), GPSTracker* (Adaptees), UbicacionBolsin
+│   ├── observer/     ISujetoBolsines, IObservadorBolsines (correo) · ISujetoSeguimiento, IObservadorSeguimiento (lista y mapa)
 │   ├── mapa/         InterfazGoogleMaps («boundary» · Observador)
-│   └── mail/         InterfazNotificacionMail («boundary» · CU 31 simulado)
+│   └── mail/         InterfazNotificacionEmail («boundary» · Observador del correo · CU 31 simulado)
 ├── dto/              DatosSeguimientoBolsin, MarcadorMapa, MensajePantalla
 ├── sesion/           Login mínimo y ContextoSesion
 └── config/           CargaDatosIniciales (datos de prueba)

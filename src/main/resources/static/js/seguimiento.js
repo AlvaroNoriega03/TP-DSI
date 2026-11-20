@@ -1,5 +1,5 @@
 /*
- * Vista web de PantallaSeguimientoBolsines.
+ * Vista web de PantallaUbicacionBolsines.
  * - Las acciones del EB se envían al servidor (POST /api/pantalla-seguimiento/...).
  * - Todo lo que el sistema muestra llega por eventos (Server-Sent Events): así, cuando los observadores
  *   del gestor reciben actualizar(...), la lista y el mapa se redibujan solos.
@@ -137,7 +137,7 @@ function conectarEventos() {
       mostrarVista('vista-seguimiento');
     });
     es.addEventListener('cm', (e) => { $('cm-origen').textContent = 'CM origen: ' + JSON.parse(e.data).nombre; });
-    // Observador PantallaSeguimientoBolsines.actualizar(...)
+    // Observador PantallaUbicacionBolsines.actualizar(...)
     es.addEventListener('bolsines', (e) => {
       estado.bolsines = JSON.parse(e.data);
       cargarCMDestino(estado.bolsines);

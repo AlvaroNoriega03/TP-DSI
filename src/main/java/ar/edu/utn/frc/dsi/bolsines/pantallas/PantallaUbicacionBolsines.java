@@ -2,7 +2,7 @@ package ar.edu.utn.frc.dsi.bolsines.pantallas;
 
 import ar.edu.utn.frc.dsi.bolsines.dto.DatosSeguimientoBolsin;
 import ar.edu.utn.frc.dsi.bolsines.dto.MensajePantalla;
-import ar.edu.utn.frc.dsi.bolsines.gestores.GestorSeguimientoBolsines;
+import ar.edu.utn.frc.dsi.bolsines.gestores.GestorUbicacionBolsines;
 import ar.edu.utn.frc.dsi.bolsines.interfaces.mapa.InterfazGoogleMaps;
 import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.IObservadorSeguimiento;
 import ar.edu.utn.frc.dsi.bolsines.sesion.ContextoSesion;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * «boundary» PantallaSeguimientoBolsines del CU 36.
+ * «boundary» PantallaUbicacionBolsines del CU 36.
  * - Los métodos "opc..." y "tomar..." reciben las acciones del EB (llegan desde el navegador por HTTP).
  * - Los métodos "mostrar...", "solicitar..." e "informar..." son los mensajes que el gestor le envía a la pantalla.
  * - PATRÓN OBSERVER - Observador concreto: actualizar(...) refresca el listado de bolsines y el filtro de CM destino.
@@ -29,14 +29,14 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/pantalla-seguimiento")
 @SessionScope
-public class PantallaSeguimientoBolsines implements IObservadorSeguimiento {
+public class PantallaUbicacionBolsines implements IObservadorSeguimiento {
 
-    private final GestorSeguimientoBolsines gestor;
+    private final GestorUbicacionBolsines gestor;
     private final InterfazGoogleMaps interfazGoogleMaps;
     private final CanalEventosPantalla canal;
     private final ContextoSesion contextoSesion;
 
-    public PantallaSeguimientoBolsines(GestorSeguimientoBolsines gestor,
+    public PantallaUbicacionBolsines(GestorUbicacionBolsines gestor,
                                        InterfazGoogleMaps interfazGoogleMaps,
                                        CanalEventosPantalla canal,
                                        ContextoSesion contextoSesion) {

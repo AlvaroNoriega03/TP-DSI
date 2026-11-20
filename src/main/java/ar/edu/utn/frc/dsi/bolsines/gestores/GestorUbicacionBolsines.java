@@ -6,13 +6,15 @@ import ar.edu.utn.frc.dsi.bolsines.entidades.ComisionMedica;
 import ar.edu.utn.frc.dsi.bolsines.entidades.Empleado;
 import ar.edu.utn.frc.dsi.bolsines.entidades.Sesion;
 import ar.edu.utn.frc.dsi.bolsines.entidades.Usuario;
-import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.IAdaptadorGPSTracker;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.ILocalizadorBolsines;
 import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.UbicacionBolsin;
 import ar.edu.utn.frc.dsi.bolsines.interfaces.gps.UbicacionNoDisponibleException;
-import ar.edu.utn.frc.dsi.bolsines.interfaces.mail.InterfazNotificacionMail;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.mail.InterfazNotificacionEmail;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.IObservadorBolsines;
 import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.IObservadorSeguimiento;
+import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.ISujetoBolsines;
 import ar.edu.utn.frc.dsi.bolsines.interfaces.observer.ISujetoSeguimiento;
-import ar.edu.utn.frc.dsi.bolsines.pantallas.PantallaSeguimientoBolsines;
+import ar.edu.utn.frc.dsi.bolsines.pantallas.PantallaUbicacionBolsines;
 import ar.edu.utn.frc.dsi.bolsines.repositorios.BolsinRepository;
 import ar.edu.utn.frc.dsi.bolsines.repositorios.EmpleadoRepository;
 import ar.edu.utn.frc.dsi.bolsines.repositorios.SesionRepository;
@@ -27,13 +29,15 @@ import java.util.List;
 
 /**
  * «control» del CU 36 Consultar seguimiento de bolsines.
- * - PATRÓN ADAPTER: es el Cliente. Sólo conoce IAdaptadorGPSTracker, nunca a los GPS Trackers concretos.
- * - PATRÓN OBSERVER: es el Sujeto concreto. Notifica a PantallaSeguimientoBolsines e InterfazGoogleMaps
- *   cada vez que obtiene, actualiza o filtra las ubicaciones de los bolsines.
+ * - PATRÓN ADAPTER: es el Cliente. Sólo conoce ILocalizadorBolsines, nunca a los GPS Trackers concretos.
+ * - PATRÓN OBSERVER (Vista Dinámica - Observer): es el Sujeto concreto del envío del correo (ISujetoBolsines).
+ *   Al confirmar el envío crea InterfazNotificacionEmail, la suscribe y la notifica con notificar().
+ * - PATRÓN OBSERVER (listado y mapa): también es Sujeto de ISujetoSeguimiento. Con notificarSeguimiento()
+ *   avisa a PantallaUbicacionBolsines e InterfazGoogleMaps cuando obtiene, actualiza o filtra las ubicaciones.
  */
 @Component
 @SessionScope
-public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
+public class GestorUbicacionBolsines implements ISujetoSeguimiento, ISujetoBolsines {
 
     private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -42,14 +46,16 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     private final SesionRepository sesionRepository;
     private final EmpleadoRepository empleadoRepository;
     private final BolsinRepository bolsinRepository;
-    private final List<IAdaptadorGPSTracker> adaptadoresGPS;
-    private final InterfazNotificacionMail interfazNotificacionMail;
+    private final List<ILocalizadorBolsines> localizadores;
 
-    // --- Observer ---
+    // --- Observer (listado y mapa) ---
     private final List<IObservadorSeguimiento> observadores = new ArrayList<>();
 
+    // --- Observer (envío del correo al GCM) ---
+    private final List<IObservadorBolsines> observadoresBolsines = new ArrayList<>();
+
     // --- Estado del caso de uso ---
-    private PantallaSeguimientoBolsines pantalla;
+    private PantallaUbicacionBolsines pantalla;
     private Empleado empleadoLogueado;
     private ComisionMedica cmEmpleadoLogueado;
     private List<Bolsin> bolsinesEnviados = new ArrayList<>();
@@ -57,19 +63,19 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     private List<DatosSeguimientoBolsin> datosVisibles = new ArrayList<>();
     private Bolsin bolsinSeleccionado;
     private DatosSeguimientoBolsin datosBolsinSeleccionado;
+    private String emailGCM;
+    private UbicacionBolsin ubicacionBolsinSeleccionado;
 
-    public GestorSeguimientoBolsines(ContextoSesion contextoSesion,
+    public GestorUbicacionBolsines(ContextoSesion contextoSesion,
                                      SesionRepository sesionRepository,
                                      EmpleadoRepository empleadoRepository,
                                      BolsinRepository bolsinRepository,
-                                     List<IAdaptadorGPSTracker> adaptadoresGPS,
-                                     InterfazNotificacionMail interfazNotificacionMail) {
+                                     List<ILocalizadorBolsines> localizadores) {
         this.contextoSesion = contextoSesion;
         this.sesionRepository = sesionRepository;
         this.empleadoRepository = empleadoRepository;
         this.bolsinRepository = bolsinRepository;
-        this.adaptadoresGPS = adaptadoresGPS;
-        this.interfazNotificacionMail = interfazNotificacionMail;
+        this.localizadores = localizadores;
     }
 
     // =====================================================================================
@@ -77,7 +83,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     // =====================================================================================
 
     /** Pasos 2 a 6 del CU 36. */
-    public void consultarSeguimientoBolsines(PantallaSeguimientoBolsines pantalla) {
+    public void consultarSeguimientoBolsines(PantallaUbicacionBolsines pantalla) {
         this.pantalla = pantalla;
         limpiarEstado();
 
@@ -103,11 +109,11 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
         }
 
         // Pasos 4 y 5: solicita y recibe la ubicación de cada bolsín (Adapter)
-        datosSeguimiento = obtenerUbicacionBolsines();
+        datosSeguimiento = obtenerLocalizacionBolsines();
         datosVisibles = new ArrayList<>(datosSeguimiento);
 
         // Paso 6: muestra en el mapa la posición de los bolsines (Observer)
-        notificar();
+        notificarSeguimiento();
         pantalla.solicitarSeleccionBolsin();
     }
 
@@ -145,17 +151,17 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     }
 
     /** Pasos 4 y 5: PATRÓN ADAPTER. El gestor le habla a todos los modelos de GPS de la misma forma. */
-    private List<DatosSeguimientoBolsin> obtenerUbicacionBolsines() {
+    private List<DatosSeguimientoBolsin> obtenerLocalizacionBolsines() {
         List<DatosSeguimientoBolsin> resultado = new ArrayList<>();
         for (Bolsin bolsin : bolsinesEnviados) {
-            IAdaptadorGPSTracker adaptador = buscarAdaptadorGPS(bolsin.getModeloGPSTracker());
-            if (adaptador == null) {
+            ILocalizadorBolsines localizador = buscarLocalizador(bolsin.getModeloGPSTracker());
+            if (localizador == null) {
                 resultado.add(crearDatosSinUbicacion(bolsin,
-                        "No hay adaptador para el modelo de GPS Tracker " + bolsin.getModeloGPSTracker()));
+                        "No hay localizador para el modelo de GPS Tracker " + bolsin.getModeloGPSTracker()));
                 continue;
             }
             try {
-                UbicacionBolsin ubicacion = adaptador.obtenerUbicacionBolsin(
+                UbicacionBolsin ubicacion = localizador.localizarBolsin(
                         bolsin.getNumeroBolsin(),
                         bolsin.getCMOrigen().getCodigo(),
                         bolsin.getCMDestino().getCodigo());
@@ -168,10 +174,10 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
         return resultado;
     }
 
-    private IAdaptadorGPSTracker buscarAdaptadorGPS(String modeloGPSTracker) {
-        for (IAdaptadorGPSTracker adaptador : adaptadoresGPS) {
-            if (adaptador.esDeModelo(modeloGPSTracker)) {
-                return adaptador;
+    private ILocalizadorBolsines buscarLocalizador(String modeloGPSTracker) {
+        for (ILocalizadorBolsines localizador : localizadores) {
+            if (localizador.esDeModelo(modeloGPSTracker)) {
+                return localizador;
             }
         }
         return null;
@@ -182,9 +188,9 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
         if (bolsinesEnviados.isEmpty()) {
             return;
         }
-        datosSeguimiento = obtenerUbicacionBolsines();
+        datosSeguimiento = obtenerLocalizacionBolsines();
         datosVisibles = new ArrayList<>(datosSeguimiento);
-        notificar();
+        notificarSeguimiento();
         pantalla.mostrarMensaje("info", "Ubicaciones actualizadas a las " + LocalDateTime.now().format(FORMATO_FECHA_HORA) + ".");
     }
 
@@ -192,7 +198,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     public void tomarFiltroPrecinto(Integer numeroPrecinto) {
         if (numeroPrecinto == null) {
             datosVisibles = new ArrayList<>(datosSeguimiento);
-            notificar();
+            notificarSeguimiento();
             return;
         }
         List<DatosSeguimientoBolsin> filtrados = new ArrayList<>();
@@ -208,14 +214,14 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
             return;
         }
         datosVisibles = filtrados;
-        notificar();
+        notificarSeguimiento();
     }
 
     /** Paso 6: filtro por CM destino (código vacío = todas). */
     public void tomarFiltroCMDestino(String codigoCMDestino) {
         if (codigoCMDestino == null || codigoCMDestino.isBlank()) {
             datosVisibles = new ArrayList<>(datosSeguimiento);
-            notificar();
+            notificarSeguimiento();
             return;
         }
         List<DatosSeguimientoBolsin> filtrados = new ArrayList<>();
@@ -225,7 +231,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
             }
         }
         datosVisibles = filtrados;
-        notificar();
+        notificarSeguimiento();
     }
 
     /** Pasos 7 y 8: el EB selecciona un bolsín del mapa. */
@@ -250,7 +256,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
         pantalla.solicitarConfirmacionEnvioCorreo(datosBolsinSeleccionado);
     }
 
-    /** Pasos 9 a 11 (o A5 si no confirma). */
+    /** Pasos 9 a 11 (o A5 si no confirma). Ver "Vista Dinámica - Observer". */
     public void tomarConfirmacionEnvioCorreo(boolean confirma) {
         if (bolsinSeleccionado == null) {
             pantalla.mostrarMensaje("error", "Primero seleccione un bolsín del mapa.");
@@ -263,40 +269,48 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
             return;
         }
         // Paso 10: busca la dirección de correo del GCM de la CM destino del bolsín
-        String emailGCM = buscarEmailGCMDestino();
+        emailGCM = buscarEmail();
         if (emailGCM == null) {
             pantalla.mostrarMensaje("error",
                     "No hay un Gerente de Comisión Médica registrado para " + bolsinSeleccionado.getCMDestino().getNombre() + ".");
             return;
         }
         // Paso 11: <<include>> CU 31 Notificar ubicación de bolsín
-        boolean enviado = llamarCUNotificarUbicacionBolsin(emailGCM);
-        if (enviado) {
-            pantalla.informarNotificacionExitosa(bolsinSeleccionado.getNumeroBolsin(), emailGCM);
-        } else {
-            pantalla.mostrarMensaje("error", "No se pudo enviar la notificación.");
-        }
+        llamarCasoDeUso31NotificarUbicacionBolsines(emailGCM);
+        pantalla.informarNotificacionExitosa(bolsinSeleccionado.getNumeroBolsin(), emailGCM);
         finCU();
     }
 
-    /** Paso 10: navega Bolsín -> CM destino y busca entre los empleados el GCM de esa CM. */
-    private String buscarEmailGCMDestino() {
+    /**
+     * Paso 10: loop buscar GCM [mientras haya empleados] de la CM destino del bolsín.
+     * Se recorren sólo los empleados de la CM destino, por eso alcanza con preguntar sosGCM().
+     */
+    private String buscarEmail() {
         ComisionMedica cmDestino = bolsinSeleccionado.getCMDestino();
-        for (Empleado empleado : empleadoRepository.findAll()) {
-            if (empleado.esTuCM(cmDestino) && empleado.sosGCM()) {
+        for (Empleado empleado : empleadoRepository.findByComisionMedica(cmDestino)) {
+            if (empleado.sosGCM()) {
                 return empleado.getEmail();
             }
         }
         return null;
     }
 
-    private boolean llamarCUNotificarUbicacionBolsin(String emailGCM) {
-        return interfazNotificacionMail.notificarUbicacionBolsin(
-                emailGCM,
-                bolsinSeleccionado.getNumeroBolsin(),
-                LocalDateTime.parse(datosBolsinSeleccionado.fechaHoraUltimaActualizacion(), FORMATO_FECHA_HORA),
+    /** Paso 11: <<include>> CU 31. Se resuelve con el patrón Observer. */
+    private void llamarCasoDeUso31NotificarUbicacionBolsines(String emailGCM) {
+        this.emailGCM = emailGCM;
+        this.ubicacionBolsinSeleccionado = new UbicacionBolsin(
+                datosBolsinSeleccionado.numeroBolsin(),
                 datosBolsinSeleccionado.latitud(),
-                datosBolsinSeleccionado.longitud());
+                datosBolsinSeleccionado.longitud(),
+                LocalDateTime.parse(datosBolsinSeleccionado.fechaHoraUltimaActualizacion(), FORMATO_FECHA_HORA));
+        suscribirObservadores();
+        notificar();
+    }
+
+    /** Crea los observadores del envío (new InterfazNotificacionEmail) y los suscribe. */
+    private void suscribirObservadores() {
+        InterfazNotificacionEmail interfazNotificacionEmail = new InterfazNotificacionEmail();
+        suscribir(new IObservadorBolsines[]{interfazNotificacionEmail});
     }
 
     /** A4: el EB cancela la ejecución del caso de uso. */
@@ -309,6 +323,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
 
     private void finCU() {
         new ArrayList<>(observadores).forEach(this::quitar);
+        new ArrayList<>(observadoresBolsines).forEach(this::quitar);
         if (pantalla != null) {
             pantalla.cerrarConsulta();
         }
@@ -316,7 +331,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     }
 
     // =====================================================================================
-    // PATRÓN OBSERVER - Sujeto
+    // PATRÓN OBSERVER - Sujeto del listado y el mapa
     // =====================================================================================
 
     @Override
@@ -332,10 +347,35 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
     }
 
     @Override
-    public void notificar() {
+    public void notificarSeguimiento() {
         List<DatosSeguimientoBolsin> copia = List.copyOf(datosVisibles);
         for (IObservadorSeguimiento observador : observadores) {
             observador.actualizar(copia);
+        }
+    }
+
+    // =====================================================================================
+    // PATRÓN OBSERVER - Sujeto del envío del correo (Vista Dinámica - Observer)
+    // =====================================================================================
+
+    @Override
+    public void suscribir(IObservadorBolsines[] observadores) {
+        for (IObservadorBolsines observador : observadores) {
+            if (!observadoresBolsines.contains(observador)) {
+                observadoresBolsines.add(observador);
+            }
+        }
+    }
+
+    @Override
+    public void quitar(IObservadorBolsines observador) {
+        observadoresBolsines.remove(observador);
+    }
+
+    @Override
+    public void notificar() {
+        for (IObservadorBolsines observador : observadoresBolsines) {
+            observador.actualizar(bolsinSeleccionado, emailGCM, ubicacionBolsinSeleccionado);
         }
     }
 
@@ -388,5 +428,7 @@ public class GestorSeguimientoBolsines implements ISujetoSeguimiento {
         datosVisibles = new ArrayList<>();
         bolsinSeleccionado = null;
         datosBolsinSeleccionado = null;
+        emailGCM = null;
+        ubicacionBolsinSeleccionado = null;
     }
 }

@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1460 880" width="1460" height="880" font-family="Arial, Helvetica, sans-serif" font-size="11">
+  <defs>
+    <marker id="lleno" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#000"/>
+    </marker>
+    <marker id="llenoAzul" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#1565c0"/>
+    </marker>
+    <marker id="abierto" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10" fill="none" stroke="#000"/>
+    </marker>
+  </defs>
+  <rect width="1460" height="880" fill="#fff"/>
+  <text x="8" y="18" font-size="12">Vista Dinámica - Observer</text>
+
+  <!-- Referencia -->
+  <g transform="translate(1170,20)">
+    <rect width="270" height="44" fill="#fff" stroke="#999"/>
+    <line x1="10" y1="16" x2="40" y2="16" stroke="#000"/><text x="48" y="20">Igual que el diagrama original</text>
+    <line x1="10" y1="33" x2="40" y2="33" stroke="#1565c0" stroke-width="2"/><text x="48" y="37" fill="#1565c0">Corregido o agregado</text>
+  </g>
+
+  <!-- ===== Cabeceras ===== -->
+  <g stroke="#000" fill="none">
+    <circle cx="50" cy="44" r="7"/><line x1="50" y1="51" x2="50" y2="66"/><line x1="40" y1="57" x2="60" y2="57"/>
+    <line x1="50" y1="66" x2="42" y2="78"/><line x1="50" y1="66" x2="58" y2="78"/>
+  </g>
+  <text x="50" y="92" text-anchor="middle" text-decoration="underline">:Encargado</text>
+  <text x="50" y="104" text-anchor="middle" text-decoration="underline">Bolsines</text>
+
+  <g stroke="#000" fill="#fff"><line x1="306" y1="40" x2="306" y2="64"/><line x1="306" y1="52" x2="316" y2="52"/><circle cx="330" cy="52" r="14"/></g>
+  <text x="330" y="84" text-anchor="middle" text-decoration="underline">:Pantalla</text>
+  <text x="330" y="96" text-anchor="middle" text-decoration="underline">UbicacionBolsines</text>
+
+  <g stroke="#000" fill="#fff"><circle cx="610" cy="52" r="14"/><path d="M606,36 L612,38 L607,42" fill="none"/></g>
+  <text x="610" y="84" text-anchor="middle" text-decoration="underline">:Gestor</text>
+  <text x="610" y="96" text-anchor="middle" text-decoration="underline">UbicacionBolsines</text>
+
+  <g stroke="#000" fill="#fff"><circle cx="790" cy="52" r="14"/><line x1="776" y1="67" x2="804" y2="67"/></g>
+  <text x="790" y="88" text-anchor="middle" text-decoration="underline">:Empleado</text>
+
+  <g stroke="#000" fill="#fff"><circle cx="920" cy="52" r="14"/><line x1="906" y1="67" x2="934" y2="67"/></g>
+  <text x="920" y="88" text-anchor="middle" text-decoration="underline">:Rol</text>
+
+  <g stroke="#000" fill="#fff"><circle cx="1040" cy="52" r="14"/><line x1="1026" y1="67" x2="1054" y2="67"/></g>
+  <text x="1040" y="84" text-anchor="middle" text-decoration="underline">GCM:</text>
+  <text x="1040" y="96" text-anchor="middle" text-decoration="underline">Empleado</text>
+
+  <g stroke="#000" fill="none">
+    <circle cx="1400" cy="114" r="7"/><line x1="1400" y1="121" x2="1400" y2="136"/><line x1="1390" y1="127" x2="1410" y2="127"/>
+    <line x1="1400" y1="136" x2="1392" y2="148"/><line x1="1400" y1="136" x2="1408" y2="148"/>
+  </g>
+  <text x="1400" y="162" text-anchor="middle" text-decoration="underline">:SistemaCorreo</text>
+  <text x="1400" y="174" text-anchor="middle" text-decoration="underline">Electrónico</text>
+
+  <!-- ===== Líneas de vida ===== -->
+  <g stroke="#000" stroke-dasharray="4,3">
+    <line x1="50" y1="108" x2="50" y2="840"/>
+    <line x1="330" y1="100" x2="330" y2="840"/>
+    <line x1="610" y1="100" x2="610" y2="860"/>
+    <line x1="790" y1="92" x2="790" y2="840"/>
+    <line x1="920" y1="92" x2="920" y2="840"/>
+    <line x1="1040" y1="100" x2="1040" y2="860"/>
+    <line x1="1200" y1="572" x2="1200" y2="860"/>
+    <line x1="1400" y1="178" x2="1400" y2="840"/>
+  </g>
+
+  <!-- ===== Activaciones ===== -->
+  <g fill="#fff" stroke="#000">
+    <rect x="325" y="120" width="10" height="70"/>
+    <rect x="605" y="160" width="10" height="680"/>
+    <rect x="785" y="240" width="10" height="45"/>
+    <rect x="915" y="262" width="10" height="20"/>
+    <rect x="1035" y="340" width="10" height="25"/>
+    <rect x="1195" y="672" width="10" height="45"/>
+    <rect x="1395" y="700" width="10" height="20"/>
+    <rect x="325" y="750" width="10" height="25"/>
+  </g>
+
+  <!-- 1. EB -> Pantalla -->
+  <circle cx="50" cy="125" r="3"/>
+  <line x1="50" y1="125" x2="324" y2="125" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="187" y="119" text-anchor="middle" fill="#1565c0">tomarConfirmacionEnvioCorreo(confirma: boolean)</text>
+
+  <!-- 2. Pantalla -> Gestor -->
+  <circle cx="335" cy="165" r="3"/>
+  <line x1="335" y1="165" x2="604" y2="165" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="470" y="159" text-anchor="middle" fill="#1565c0">tomarConfirmacionEnvioCorreo(confirma: boolean)</text>
+
+  <!-- 3. buscarEmail -->
+  <path d="M615,185 H645 V199 H616" fill="none" stroke="#000" marker-end="url(#lleno)"/>
+  <text x="650" y="196">buscarEmail(): String</text>
+
+  <!-- loop -->
+  <rect x="380" y="215" width="580" height="85" fill="none" stroke="#000"/>
+  <path d="M380,215 H490 V228 L480,236 H380 z" fill="#fff" stroke="#000"/>
+  <text x="388" y="230">loop buscar GCM</text>
+  <text x="384" y="252">[Mientras haya empleados]</text>
+
+  <!-- 4. sosGCM -->
+  <circle cx="615" cy="245" r="3"/>
+  <line x1="615" y1="245" x2="784" y2="245" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="700" y="239" text-anchor="middle" fill="#1565c0">sosGCM(): boolean</text>
+
+  <!-- 5. esTuGCM -->
+  <circle cx="795" cy="267" r="3"/>
+  <line x1="795" y1="267" x2="914" y2="267" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="855" y="261" text-anchor="middle" fill="#1565c0">esTuGCM(): boolean</text>
+
+  <!-- 6. getEmail -->
+  <circle cx="615" cy="345" r="3"/>
+  <line x1="615" y1="345" x2="1034" y2="345" stroke="#000" marker-end="url(#lleno)"/>
+  <text x="825" y="339" text-anchor="middle">getEmail(): String</text>
+
+  <!-- 7. llamar CU 31 -->
+  <path d="M615,385 H645 V399 H616" fill="none" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="650" y="396" fill="#1565c0">llamarCasoDeUso31NotificarUbicacionBolsines(emailGCM: String)</text>
+
+  <!-- include -->
+  <line x1="615" y1="440" x2="1145" y2="440" stroke="#000" stroke-dasharray="5,4" marker-end="url(#abierto)"/>
+  <text x="880" y="434" text-anchor="middle">&lt;&lt;include&gt;&gt;</text>
+  <ellipse cx="1220" cy="440" rx="74" ry="26" fill="#fff" stroke="#000"/>
+  <text x="1220" y="437" text-anchor="middle">CU31 Notificar Ubicación</text>
+  <text x="1220" y="451" text-anchor="middle">Bolsín</text>
+
+  <!-- 8. suscribirObservadores -->
+  <path d="M615,485 H645 V499 H616" fill="none" stroke="#000" marker-end="url(#lleno)"/>
+  <text x="650" y="496">suscribirObservadores()</text>
+
+  <!-- 9. new() -> InterfazNotificacionEmail -->
+  <line x1="615" y1="540" x2="1175" y2="540" stroke="#000" stroke-dasharray="5,4" marker-end="url(#abierto)"/>
+  <text x="890" y="534" text-anchor="middle">new()</text>
+  <g stroke="#000" fill="#fff"><line x1="1178" y1="528" x2="1178" y2="552"/><line x1="1178" y1="540" x2="1186" y2="540"/><circle cx="1200" cy="540" r="14"/></g>
+  <text x="1200" y="571" text-anchor="middle" text-decoration="underline">:InterfazNotificacion</text>
+  <text x="1200" y="583" text-anchor="middle" text-decoration="underline">Email</text>
+
+  <!-- 10. suscribir -->
+  <path d="M615,595 H645 V609 H616" fill="none" stroke="#000" marker-end="url(#lleno)"/>
+  <text x="650" y="606">suscribir(observadores: IObservadorBolsines[])</text>
+
+  <!-- 11. notificar -->
+  <path d="M615,635 H645 V649 H616" fill="none" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="650" y="646" fill="#1565c0">notificar()</text>
+
+  <!-- 12. actualizar -->
+  <circle cx="615" cy="677" r="3"/>
+  <line x1="615" y1="677" x2="1194" y2="677" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="900" y="671" text-anchor="middle" fill="#1565c0">actualizar(bolsin: Bolsin, emailGCM: String, ubicacion: UbicacionBolsin)</text>
+
+  <!-- 13. enviarNotificacion -->
+  <circle cx="1205" cy="705" r="3"/>
+  <line x1="1205" y1="705" x2="1394" y2="705" stroke="#000" marker-end="url(#lleno)"/>
+  <text x="1300" y="699" text-anchor="middle">enviarNotificacion(notificacion: String)</text>
+
+  <!-- 14. informarNotificacionExitosa -->
+  <circle cx="605" cy="755" r="3"/>
+  <line x1="605" y1="755" x2="336" y2="755" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="470" y="749" text-anchor="middle" fill="#1565c0">informarNotificacionExitosa(numeroBolsin: Integer, emailGCM: String)</text>
+
+  <!-- 15. finCU -->
+  <path d="M615,795 H645 V809 H616" fill="none" stroke="#1565c0" stroke-width="1.5" marker-end="url(#llenoAzul)"/>
+  <text x="650" y="806" fill="#1565c0">finCU()</text>
+</svg>

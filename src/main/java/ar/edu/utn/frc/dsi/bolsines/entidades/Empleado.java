@@ -68,7 +68,7 @@ public class Empleado {
 
     /** Delega en el Rol (Experto). */
     public boolean sosGCM() {
-        return rol != null && rol.esGCM();
+        return rol != null && rol.esTuGCM();
     }
 
     public String getEmail() {
